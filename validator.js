@@ -4,6 +4,8 @@
   const number=v=>{const n=Number(String(v??"").replace(",", "."));return Number.isFinite(n)?n:null};
   const op=v=>String(v??"").replace(/\D/g,"").replace(/^0+/,"");
   const stockKey=v=>key(v).replace(/[A-Z]+$/,"").replace(/^0+/,"");
+  const pieceKey=v=>key(String(v??"").split(",")[0]);
+  const furnitureKey=v=>key(v).replace(/(?:SFR|SB|FLBX|REJ)+$/,"");
   const cleanHeader=v=>norm(v).toLowerCase().replace(/[^a-z0-9]+/g,"");
   const aliases={
     mueble:["codmueble","codmueblenue","codigomueble"],pieza:["tipopieza","codpieza"],cantidad:["cantreal","cantidad","cantpiezas"],
@@ -22,10 +24,11 @@
   function parseBase(text){
     return String(text||"").split(/\r?\n/).map((raw,i)=>{
       const fields=[];let value="",quoted=false;
-      for(let p=0;p<raw.length;p++){const c=raw[p];if(c==='"')quoted=!quoted;else if(c==="|"&&!quoted){fields.push(value);value=""}else value+=c}
+      const delimiter=raw.includes("|")?"|":";";
+      for(let p=0;p<raw.length;p++){const c=raw[p];if(c==='"')quoted=!quoted;else if(c===delimiter&&!quoted){fields.push(value);value=""}else value+=c}
       fields.push(value);
       return {line:i+1,raw,norm:norm(raw),compact:key(raw),numbers:(raw.match(/-?\d+(?:[.,]\d+)?/g)||[]).map(number),
-        fields,mueble:fields[1]||"",description:fields[2]||"",qty:number(fields[3]),m1:number(fields[4]),m2:number(fields[5]),stock:fields[8]||""};
+        fields,numero:fields[0]||"",mueble:fields[1]||"",description:fields[2]||"",piece:pieceKey(fields[2]),qty:number(fields[3]),m1:number(fields[4]),m2:number(fields[5]),stock:fields[8]||""};
     }).filter(x=>x.norm);
   }
   function equivalentCode(baseCode,excelCode){
@@ -36,24 +39,26 @@
     return line.numbers.some(x=>x!==null&&Math.abs(x-n)<=tolerance);
   }
   function comparison(row,line,type,index,note="Coincidencia"){
-    const mueble=field(row,"mueble"),pieza=field(row,"pieza"),stock=field(row,"stock"),qty=field(row,"cantidad"),m1=field(row,"medida1"),m2=field(row,"medida2");
-    return {row:index+2,kind:note,reference:type==="herrajes"?String(stock):String(pieza),xls:type==="herrajes"?`Mueble ${mueble||"—"} · Cant. ${qty}`:`Mueble ${mueble||"—"} · Cant. ${qty} · ${m1} × ${m2}`,txt:line?.raw||"Sin línea directa",detail:note};
+    const numero=field(row,"numero"),mueble=field(row,"mueble"),pieza=field(row,"pieza"),stock=field(row,"stock"),qty=field(row,"cantidad"),m1=field(row,"medida1"),m2=field(row,"medida2");
+    return {row:index+2,kind:note,numero:String(numero||line?.numero||"—"),mueble:String(mueble||"—"),groupKey:`${numero||line?.numero||"—"}|${mueble||"—"}`,reference:type==="herrajes"?String(stock):String(pieza),xls:type==="herrajes"?`Cant. ${qty}`:`Cant. ${qty} · ${m1} × ${m2}`,txt:line?.raw||"Sin línea directa",txtLine:line?.line||null,detail:note};
   }
   function validate(rows,baseLines,type,expectedOp){
     const issues=[],comparisons=[];let matched=0,notComparable=0;
+    const byStock=new Map(),byPiece=new Map();
+    baseLines.forEach(line=>{
+      const sk=stockKey(line.stock);if(sk){if(!byStock.has(sk))byStock.set(sk,[]);byStock.get(sk).push(line)}
+      if(line.piece){if(!byPiece.has(line.piece))byPiece.set(line.piece,[]);byPiece.get(line.piece).push(line)}
+    });
     rows.forEach((row,index)=>{
       const excelOp=op(field(row,"orden"));
       const mueble=field(row,"mueble"), pieza=field(row,"pieza"), stock=field(row,"stock");
       const qty=field(row,"cantidad"),m1=field(row,"medida1"),m2=field(row,"medida2");
       if(expectedOp&&excelOp&&excelOp!==op(expectedOp)){issues.push({row:index+2,kind:"OP",detail:`La OP ${excelOp} del XLS no coincide con la OP base ${op(expectedOp)}`,reference:type==="herrajes"?String(stock):String(pieza),xls:`Mueble ${mueble||"—"} · OP ${excelOp}`,txt:`TXT base / filtro: OP ${op(expectedOp)}`});return}
-      const candidates=baseLines.filter(l=>{
-        const hasFurniture=!mueble||equivalentCode(l.compact,mueble)||l.compact.includes(key(mueble).slice(0,Math.max(5,key(mueble).indexOf("SFR"))));
-        const identity=type==="herrajes"?(stock&&stockKey(l.stock)===stockKey(stock)):(pieza&&l.compact.includes(key(pieza)));
-        return hasFurniture&&identity;
-      });
+      const identityPool=type==="herrajes"?(byStock.get(stockKey(stock))||[]):(byPiece.get(pieceKey(pieza))||[]);
+      const candidates=identityPool.filter(l=>!mueble||equivalentCode(furnitureKey(l.mueble),furnitureKey(mueble)));
       if(!candidates.length){
-        if(type==="herrajes"){notComparable++;return}
-        issues.push({row:index+2,kind:"Faltante",detail:`No se encontró ${pieza} del mueble ${mueble}`,reference:String(pieza),xls:`Mueble ${mueble||"—"} · Cant. ${qty} · ${m1} × ${m2}`,txt:`Sin registro equivalente en el TXT para mueble ${mueble||"—"} y pieza ${pieza||"—"}`});return
+        if(type==="herrajes"){notComparable++;comparisons.push(comparison(row,null,type,index,"Sin equivalencia directa"));return}
+        issues.push({...comparison(row,null,type,index,"Faltante"),detail:`No se encontró ${pieza} del mueble ${mueble}`,txt:`Sin registro equivalente en el TXT para mueble ${mueble||"—"} y pieza ${pieza||"—"}`});return
       }
       const measureMatch=candidates.some(l=>{
         if(type==="herrajes"){
@@ -65,14 +70,17 @@
         return containsNumber(l,m1,1)&&containsNumber(l,m2,1)&&containsNumber(l,qty,.011);
       });
       if(!measureMatch){
-        if(type==="herrajes"){matched++;if(comparisons.length<12)comparisons.push(comparison(row,candidates[0],type,index,"Referencia válida"));return}
-        issues.push({row:index+2,kind:"Diferencia",detail:`Existe la referencia, pero cantidad o medidas no coinciden`,reference:String(pieza),xls:`Mueble ${mueble||"—"} · Cant. ${qty} · ${m1} × ${m2}`,txt:candidates[0].raw});return
+        if(type==="herrajes"){matched++;comparisons.push(comparison(row,candidates[0],type,index,"Referencia válida"));return}
+        issues.push({...comparison(row,candidates[0],type,index,"Diferencia"),detail:`Existe la referencia, pero cantidad o medidas no coinciden`});return
       }
       matched++;
-      if(comparisons.length<12)comparisons.push(comparison(row,candidates[0],type,index,norm(pieza)==="SOPFRE"?"Regla SOPFRE":"Coincide"));
+      comparisons.push(comparison(row,candidates.find(l=>{
+        if(type==="herrajes")return true;
+        return containsNumber(l,m1,1)&&containsNumber(l,m2,1);
+      })||candidates[0],type,index,norm(pieza)==="SOPFRE"?"Regla SOPFRE":"Coincide"));
     });
     const total=rows.length,errors=issues.length,status=errors===0?"APROBADO":matched>0?"CON OBSERVACIONES":"RECHAZADO";
     return {total,matched,notComparable,errors,missing:issues.filter(x=>x.kind==="Faltante").length,differences:issues.filter(x=>x.kind!=="Faltante").length,status,issues,comparisons};
   }
-  return {norm,key,op,stockKey,field,detectType,parseBase,equivalentCode,validate};
+  return {norm,key,op,stockKey,pieceKey,furnitureKey,field,detectType,parseBase,equivalentCode,validate};
 });
