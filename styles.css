@@ -14,3 +14,4 @@
 .metric{border-top:3px solid var(--brand2)}
 @media(max-width:780px){.results-heading{align-items:flex-start;flex-direction:column}.export-actions{width:100%}.export-actions .btn{flex:1;justify-content:center}}
 @media(max-width:420px){.export-actions{flex-direction:column}.export-actions .btn{width:100%}}
+.detail-help,.validation-note{margin:8px 0;color:var(--muted);font-size:12px}.validation-note{padding:9px 11px;border-radius:8px;background:var(--soft)}.txt-cell{min-width:320px;font-family:Consolas,monospace;font-size:11px}
