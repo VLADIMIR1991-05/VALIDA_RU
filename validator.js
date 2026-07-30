@@ -36,8 +36,8 @@
     return line.numbers.some(x=>x!==null&&Math.abs(x-n)<=tolerance);
   }
   function comparison(row,line,type,index,note="Coincidencia"){
-    const pieza=field(row,"pieza"),stock=field(row,"stock"),qty=field(row,"cantidad"),m1=field(row,"medida1"),m2=field(row,"medida2");
-    return {row:index+2,kind:note,reference:type==="herrajes"?String(stock):String(pieza),xls:type==="herrajes"?`Cant. ${qty}`:`Cant. ${qty} · ${m1} × ${m2}`,txt:line?.raw||"Sin línea directa"};
+    const mueble=field(row,"mueble"),pieza=field(row,"pieza"),stock=field(row,"stock"),qty=field(row,"cantidad"),m1=field(row,"medida1"),m2=field(row,"medida2");
+    return {row:index+2,kind:note,reference:type==="herrajes"?String(stock):String(pieza),xls:type==="herrajes"?`Mueble ${mueble||"—"} · Cant. ${qty}`:`Mueble ${mueble||"—"} · Cant. ${qty} · ${m1} × ${m2}`,txt:line?.raw||"Sin línea directa",detail:note};
   }
   function validate(rows,baseLines,type,expectedOp){
     const issues=[],comparisons=[];let matched=0,notComparable=0;
@@ -45,7 +45,7 @@
       const excelOp=op(field(row,"orden"));
       const mueble=field(row,"mueble"), pieza=field(row,"pieza"), stock=field(row,"stock");
       const qty=field(row,"cantidad"),m1=field(row,"medida1"),m2=field(row,"medida2");
-      if(expectedOp&&excelOp&&excelOp!==op(expectedOp)){issues.push({row:index+2,kind:"OP",detail:`OP del archivo ${excelOp} no coincide con ${op(expectedOp)}`});return}
+      if(expectedOp&&excelOp&&excelOp!==op(expectedOp)){issues.push({row:index+2,kind:"OP",detail:`La OP ${excelOp} del XLS no coincide con la OP base ${op(expectedOp)}`,reference:type==="herrajes"?String(stock):String(pieza),xls:`Mueble ${mueble||"—"} · OP ${excelOp}`,txt:`TXT base / filtro: OP ${op(expectedOp)}`});return}
       const candidates=baseLines.filter(l=>{
         const hasFurniture=!mueble||equivalentCode(l.compact,mueble)||l.compact.includes(key(mueble).slice(0,Math.max(5,key(mueble).indexOf("SFR"))));
         const identity=type==="herrajes"?(stock&&stockKey(l.stock)===stockKey(stock)):(pieza&&l.compact.includes(key(pieza)));
@@ -53,7 +53,7 @@
       });
       if(!candidates.length){
         if(type==="herrajes"){notComparable++;return}
-        issues.push({row:index+2,kind:"Faltante",detail:`No se encontró ${pieza} del mueble ${mueble}`,reference:String(pieza),xls:`Cant. ${qty} · ${m1} × ${m2}`,txt:"Sin coincidencia"});return
+        issues.push({row:index+2,kind:"Faltante",detail:`No se encontró ${pieza} del mueble ${mueble}`,reference:String(pieza),xls:`Mueble ${mueble||"—"} · Cant. ${qty} · ${m1} × ${m2}`,txt:`Sin registro equivalente en el TXT para mueble ${mueble||"—"} y pieza ${pieza||"—"}`});return
       }
       const measureMatch=candidates.some(l=>{
         if(type==="herrajes"){
@@ -66,7 +66,7 @@
       });
       if(!measureMatch){
         if(type==="herrajes"){matched++;if(comparisons.length<12)comparisons.push(comparison(row,candidates[0],type,index,"Referencia válida"));return}
-        issues.push({row:index+2,kind:"Diferencia",detail:`Existe la referencia, pero cantidad o medidas no coinciden (${qty}; ${m1} × ${m2})`,reference:String(pieza),xls:`Cant. ${qty} · ${m1} × ${m2}`,txt:candidates[0].raw});return
+        issues.push({row:index+2,kind:"Diferencia",detail:`Existe la referencia, pero cantidad o medidas no coinciden`,reference:String(pieza),xls:`Mueble ${mueble||"—"} · Cant. ${qty} · ${m1} × ${m2}`,txt:candidates[0].raw});return
       }
       matched++;
       if(comparisons.length<12)comparisons.push(comparison(row,candidates[0],type,index,norm(pieza)==="SOPFRE"?"Regla SOPFRE":"Coincide"));
