@@ -1,0 +1,1 @@
+{"name":"valida-ru","version":"1.0.0","private":true,"scripts":{"test":"node tests/validator.test.js"}}

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#12231d">
+  <title>VALIDA RU · Ingeniería</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">VR</span><div><strong>VALIDA RU</strong><small>Control de ingeniería</small></div></div>
+    <span class="privacy">Procesamiento local · Los archivos no salen del equipo</span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <span class="eyebrow">VALIDADOR DE DESPIECES</span>
+        <h1>Validación técnica contra TXT base</h1>
+        <p>Cargue uno, dos o tres despieces. Cada archivo se analiza y reporta de forma independiente.</p>
+      </div>
+      <div class="project-fields" aria-label="Datos del proyecto">
+        <label>Año<input id="year" inputmode="numeric" value="2026"></label>
+        <label>Lote<input id="lot" placeholder="29.6"></label>
+        <label>OP<input id="op" inputmode="numeric" placeholder="34639"></label>
+        <label>Proyecto <span>(opcional)</span><input id="project" placeholder="CASA DL"></label>
+      </div>
+    </section>
+
+    <section class="workflow card">
+      <div class="step">
+        <span class="step-number">1</span>
+        <div><h2>TXT base</h2><p>Seleccione el archivo maestro de Información y Precios.</p></div>
+      </div>
+      <label class="dropzone base-zone" id="base-zone">
+        <input id="base-file" type="file" accept=".txt,text/plain">
+        <span class="upload-icon">TXT</span>
+        <strong id="base-title">Seleccionar TXT base</strong>
+        <small id="base-meta">Se recomienda el archivo de mayor tamaño</small>
+      </label>
+
+      <div class="divider"></div>
+
+      <div class="step">
+        <span class="step-number">2</span>
+        <div><h2>Despieces a validar</h2><p>Puede cargar solo uno, cualquier combinación o los tres.</p></div>
+      </div>
+      <label class="dropzone multi-zone" id="parts-zone">
+        <input id="parts-files" type="file" multiple accept=".xls,.xlsx,.csv">
+        <span class="upload-icon">XLS</span>
+        <strong>Seleccionar despieces</strong>
+        <small>Melamina, herrajes y/o lacas · selección múltiple</small>
+      </label>
+      <div id="file-list" class="file-list" aria-live="polite"></div>
+
+      <div class="actions">
+        <button id="clear" class="btn ghost" type="button">Limpiar</button>
+        <button id="validate" class="btn primary" type="button" disabled>Validar archivos</button>
+      </div>
+      <p id="global-message" class="global-message" role="status"></p>
+    </section>
+
+    <section id="results" class="results hidden" aria-live="polite">
+      <div class="results-heading"><div><span class="eyebrow">RESULTADOS</span><h2>Reporte por archivo</h2></div>
+        <div class="export-actions" aria-label="Descargar reporte">
+          <button id="export-xls" class="btn export-btn export-xls" type="button"><span>XLS</span> Descargar Excel</button>
+          <button id="export-pdf" class="btn export-btn export-pdf" type="button"><span>PDF</span> Descargar PDF</button>
+        </div>
+      </div>
+      <div id="summary" class="summary"></div>
+      <div id="result-cards" class="result-cards"></div>
+    </section>
+  </main>
+
+  <template id="file-template">
+    <article class="file-item"><span class="file-kind"></span><div><strong class="file-name"></strong><small class="file-info"></small></div><button type="button" aria-label="Quitar archivo">×</button></article>
+  </template>
+  <script src="validator.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

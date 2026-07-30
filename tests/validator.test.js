@@ -1,0 +1,12 @@
+const assert=require("assert");
+const V=require("../validator.js");
+assert.equal(V.detectType(["codmueblenue","codstock","descriruta"],"archivo.xls"),"herrajes");
+assert.equal(V.detectType(["codmueble","tipopieza","medida1"],"despiece lacas.xls"),"lacas");
+assert.equal(V.op("0034639"),"34639");
+assert(V.equivalentCode("B120P6.7F","B120P6.7F-SFR"));
+const base=V.parseBase("6;B120P6.7F;PT;2;722;597\n6;B120P6.7F;0520000046;2");
+const piezas=V.validate([{op:"0034639",codmueble:"B120P6.7F-SFR",tipopieza:"PT",cantreal:2,medida1:722,medida2:597}],base,"melamina","34639");
+assert.equal(piezas.status,"APROBADO");
+const hardware=V.validate([{numordent:"0034639",codmueblenue:"B120P6.7F-SFR",codstock:"0520000046",cantreal:2}],base,"herrajes","34639");
+assert.equal(hardware.status,"APROBADO");
+console.log("Pruebas VALIDA RU: OK");
